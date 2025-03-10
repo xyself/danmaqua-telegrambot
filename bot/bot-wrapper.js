@@ -1,6 +1,7 @@
 const settings = require('./util/settings');
-const Telegraf = require('telegraf');
-const Extra = require('telegraf/extra');
+const { Telegraf } = require('telegraf');
+const { Extra } = require('telegraf');
+const { Markup } = require('telegraf');
 
 class BotWrapper {
     constructor({ botConfig, botToken, agent, logger }) {
@@ -21,7 +22,7 @@ class BotWrapper {
         this.bot.catch((e) => {
             this.logger.default.error(e);
         });
-        this.bot.start(this.onCommandStart);
+        this.bot.command('start', this.onCommandStart);
         this.bot.command('help', this.onCommandHelp);
     }
 
@@ -204,6 +205,44 @@ class BotWrapper {
         res += '\n输入 `/help [command]` 可以查询你想了解的命令的使用方法和参数。';
         return ctx.reply(res, Extra.markdown());
     }
+
+    createManageChatsMessageKeyboard = async (userId, page) => {
+        const buttons = [];
+        for (let cfg of this.getManagedChatsConfigByPage(userId, page)) {
+            const chat = await this.getChat(cfg.chatId);
+            let displayName = '' + cfg.chatId;
+            if (chat) {
+                if (chat.title && !chat.username) {
+                    displayName = chat.title;
+                } else if (!chat.title && chat.username) {
+                    displayName = '@' + chat.username;
+                } else if (chat.title && chat.username) {
+                    displayName = chat.title + ' (@' + chat.username + ')';
+                }
+            }
+            buttons.push([Markup.button.callback(displayName, 'manage_chat:' + cfg.chatId)]);
+        }
+        const pageButtons = [];
+        const pageCount = this.getManagedChatsPageCount(userId);
+        pageButtons.push(Markup.button.callback('第' + (page+1) + '/' + pageCount + '页', 'noop'));
+        if (page > 0) {
+            pageButtons.push(Markup.button.callback('上一页', 'manage_chats_pages:' + (page - 1)));
+        }
+        if (page < pageCount - 1) {
+            pageButtons.push(Markup.button.callback('下一页', 'manage_chats_pages:' + (page + 1)))
+        }
+        if (pageButtons.length > 1) {
+            buttons.push(pageButtons);
+        }
+        return Markup.inlineKeyboard(buttons);
+    };
+
+    requestUnregisterChat = async (ctx, chatId) => {
+        ctx.reply('你确定要取消注册对话 id=' + chatId + ' 吗？所有该对话的设置都会被清除且无法恢复。',
+            Extra.markup(Markup.inlineKeyboard([
+                Markup.button.callback('是的，我不后悔', 'confirm_unregister_chat:' + chatId)
+            ])));
+    };
 }
 
 module.exports = BotWrapper;

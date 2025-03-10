@@ -1,7 +1,6 @@
 const settings = require('./util/settings');
 const BotWrapper = require('./bot-wrapper');
-const Extra = require('telegraf/extra');
-const Markup = require('telegraf/markup');
+const { Extra, Markup } = require('telegraf');
 
 const MANAGE_PAGE_MAX_ITEMS = 4;
 const USER_STATE_CODE_CHAT_CHANGE_DANMAKU_SRC = 1;
@@ -431,23 +430,23 @@ class DanmaquaBot extends BotWrapper {
         const config = settings.getChatConfig(chatId);
         const dmSrc = config.danmakuSource;
         const roomId = config.roomId;
-        let msgText = `你想要修改频道 “${displayName}” (id: ${chat.id}) 的什么设置？\n`;
+        let msgText = `你想要修改频道 "${displayName}" (id: ${chat.id}) 的什么设置？\n`;
         msgText += `房间号/弹幕源：${roomId} ${dmSrc}\n`;
         msgText += '过滤规则：' + config.pattern;
         ctx.reply(msgText, Extra.markup(Markup.inlineKeyboard([
             [
-                Markup.callbackButton('房间号/弹幕源', 'change_danmaku_src:' + chat.id),
-                Markup.callbackButton('过滤规则', 'change_pattern:' + chat.id),
-                Markup.callbackButton('管理员', 'change_admin:' + chat.id)
+                Markup.button.callback('房间号/弹幕源', 'change_danmaku_src:' + chat.id),
+                Markup.button.callback('过滤规则', 'change_pattern:' + chat.id),
+                Markup.button.callback('管理员', 'change_admin:' + chat.id)
             ],
             [
-                Markup.callbackButton('屏蔽用户', 'change_blocked_users:' + chat.id),
-                Markup.callbackButton('重连房间', `reconnect_room:${dmSrc}_${roomId}`),
-                Markup.callbackButton('查看统计', `stat_by_chat:` + chat.id)
+                Markup.button.callback('屏蔽用户', 'change_blocked_users:' + chat.id),
+                Markup.button.callback('重连房间', `reconnect_room:${dmSrc}_${roomId}`),
+                Markup.button.callback('查看统计', `stat_by_chat:` + chat.id)
             ],
             [
-                Markup.callbackButton('计划任务', 'manage_schedules:' + chat.id),
-                Markup.callbackButton('取消注册', 'unregister_chat:' + chat.id)
+                Markup.button.callback('计划任务', 'manage_schedules:' + chat.id),
+                Markup.button.callback('取消注册', 'unregister_chat:' + chat.id)
             ]
         ])));
     };
