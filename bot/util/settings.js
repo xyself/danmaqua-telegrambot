@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const DEFAULT_PATTERN = '(?<who>^[^〈｛〖［〔【]{0,5})([〈｛〖［〔【])(?<text>[^〈｛〖［〔【〉｝〗］〕】]+)([$〉｝〗］〕】]?)';
+const DEFAULT_PATTERN = '.*';
 const DEFAULT_DANMAKU_SOURCE = 'bilibili';
 
 class Settings {
