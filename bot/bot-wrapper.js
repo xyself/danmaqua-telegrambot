@@ -5,7 +5,13 @@ const Extra = require('telegraf/extra');
 class BotWrapper {
     constructor({ botConfig, botToken, agent, logger }) {
         this.botConfig = botConfig;
-        this.bot = new Telegraf(botToken, { telegram: { agent } });
+        this.apiEndpoints = [
+            'https://tgapi.chenguaself.tk',
+            'https://api-proxy.me/telegram',
+            'https://api.telegram.org'
+        ];
+        this.currentApiIndex = 0;
+        this.createBot(botToken, agent);
         this.botUser = null;
         this.logger = logger;
         this.commandRecords = [];
@@ -19,19 +25,45 @@ class BotWrapper {
         this.bot.command('help', this.onCommandHelp);
     }
 
+    createBot(botToken, agent) {
+        this.bot = new Telegraf(botToken, { 
+            telegram: { 
+                agent,
+                apiRoot: this.apiEndpoints[this.currentApiIndex]
+            } 
+        });
+    }
+
+    switchToNextApi(botToken, agent) {
+        this.currentApiIndex = (this.currentApiIndex + 1) % this.apiEndpoints.length;
+        this.logger.default.info(`Switching to API endpoint: ${this.apiEndpoints[this.currentApiIndex]}`);
+        this.createBot(botToken, agent);
+    }
+
     user_access_log(userId, out) {
         this.logger.access.debug(`UserId=${userId} ${out}`);
     }
 
     start = async () => {
         this.logger.default.info('Launcher: Bot is launching...');
-        while (!this.botUser) {
+        let retryCount = 0;
+        const maxRetries = this.apiEndpoints.length * 2; // 每个端点尝试两次
+
+        while (!this.botUser && retryCount < maxRetries) {
             try {
                 this.botUser = await this.bot.telegram.getMe();
             } catch (e) {
                 console.error(e);
+                this.logger.default.error(`Failed to connect to ${this.apiEndpoints[this.currentApiIndex]}`);
+                this.switchToNextApi(this.botConfig.botToken, this.botConfig.agent);
+                retryCount++;
             }
         }
+
+        if (!this.botUser) {
+            throw new Error('无法连接到任何 Telegram API 端点');
+        }
+
         return await this.bot.launch();
     };
 
@@ -175,3 +207,5 @@ class BotWrapper {
 }
 
 module.exports = BotWrapper;
+
+
