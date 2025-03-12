@@ -25,34 +25,70 @@ class DouyuDanmakuSource extends BaseDanmakuWebSocketSource {
     }
 
     createLive(roomId) {
-        const live = new DouyuDM(roomId, { debug: false });
+        let live;
+        try {
+            live = new DouyuDM(roomId, { 
+                debug: false,
+                ignore: [],
+                onError: (e) => {
+                    this.logger.error(`DouyuDM internal error for room ${roomId}:`, e);
+                }
+            });
+        } catch (e) {
+            this.logger.error(`Failed to create DouyuDM instance for room ${roomId}:`, e);
+            return null;
+        }
+
         live.on('connect', () => {
             this.logger.debug(`Connect to live room: ${roomId}`);
         });
-        live.on('chatmsg', (data) => {
-            const dmSenderUid = data.uid;
-            const dmSenderUsername = data.nn;
-            const dmSenderUrl = 'https://yuba.douyu.com/wbapi/web/jumpusercenter?id=' + dmSenderUid +
-                '&name=' + encodeURIComponent(dmSenderUsername);
-            const dmText = data.txt;
-            const dmTimestamp = data.cst;
 
-            const danmaku = new Danmaku({
-                sender: {
-                    uid: dmSenderUid,
-                    username: dmSenderUsername,
-                    url: dmSenderUrl
-                },
-                text: dmText,
-                timestamp: dmTimestamp,
-                roomId: roomId
-            });
-            this.sendDanmaku(danmaku);
+        live.on('chatmsg', (data) => {
+            try {
+                if (!data || typeof data !== 'object') {
+                    this.logger.warn(`Invalid chatmsg data received for room ${roomId}`);
+                    return;
+                }
+
+                const dmSenderUid = data.uid;
+                const dmSenderUsername = data.nn;
+                const dmSenderUrl = 'https://yuba.douyu.com/wbapi/web/jumpusercenter?id=' + dmSenderUid +
+                    '&name=' + encodeURIComponent(dmSenderUsername);
+                const dmText = data.txt;
+                const dmTimestamp = data.cst;
+
+                if (!dmSenderUid || !dmSenderUsername || !dmText) {
+                    this.logger.warn(`Incomplete chatmsg data received for room ${roomId}:`, data);
+                    return;
+                }
+
+                const danmaku = new Danmaku({
+                    sender: {
+                        uid: dmSenderUid,
+                        username: dmSenderUsername,
+                        url: dmSenderUrl
+                    },
+                    text: dmText,
+                    timestamp: dmTimestamp,
+                    roomId: roomId
+                });
+                this.sendDanmaku(danmaku);
+            } catch (e) {
+                this.logger.error(`Error processing douyu danmaku for room ${roomId}: ${e.message}`, e);
+            }
         });
+
         live.on('error', (e) => {
             this.logger.error(`DouyuDanmakuSource roomId=${roomId} error:`, e);
         });
-        live.run();
+
+        try {
+            live.run();
+        } catch (e) {
+            this.logger.error(`Failed to run DouyuDM for room ${roomId}:`, e);
+            return null;
+        }
+
         return live;
     }
 
@@ -63,12 +99,17 @@ class DouyuDanmakuSource extends BaseDanmakuWebSocketSource {
             return;
         }
         try {
+            const live = this.createLive(roomId);
+            if (!live) {
+                this.logger.error(`Failed to create live connection for room ${roomId}`);
+                return;
+            }
             this.liveList[roomId] = {
-                live: this.createLive(roomId),
+                live: live,
                 counter: 1
             };
         } catch (e) {
-            this.logger.error(e);
+            this.logger.error(`Error in onJoin for room ${roomId}:`, e);
         }
     }
 
