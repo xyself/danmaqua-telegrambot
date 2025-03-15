@@ -1,7 +1,4 @@
 {
-  "dependencies": {
-    "express": "^4.21.2"
-  },
   "name": "danmaqua-telegrambot",
   "version": "1.0.0",
   "description": "Danmaqua Telegram Bot ======",
@@ -22,5 +19,8 @@
   "bugs": {
     "url": "https://github.com/xyself/danmaqua-telegrambot/issues"
   },
-  "homepage": "https://github.com/xyself/danmaqua-telegrambot#readme"
+  "homepage": "https://github.com/xyself/danmaqua-telegrambot#readme",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
 }
