@@ -2,9 +2,9 @@ module.exports = {
     dataDir: './data',
     dataSaveInterval: 10000,
     logsDir: './data/logs/bot',
-    botToken: '8047729291:AAEfx1slTGySIwuavsjh17alcC1dIDSqIYU',
+    botToken: '',
     botProxy: null,
-    botAdmins: [6401723199],
+    botAdmins: [],
     debugMode: false,
     rateLimit: {
         enabled: false,
@@ -17,7 +17,7 @@ module.exports = {
         selectDB: 1
     },
     // B站登录Cookie中的SESSDATA值，用于获取弹幕用户名等信息
-    bilibiliSessData: '865aac96%2C1747619052%2Ce22fc%2Ab2CjAFDElzsuJocThl5hAE5d6d19kp9UpM9QfwbkM9KQUCWAoYsoUQcOpIBPstCJ3z8QYSVl9lUjhsUklaZTJrZG1jRWFSTXBmTWwyMmdBci1LS1lYUWNYcG5jNFZkSlB3UVROVkpXZjFmN1hudjIydUhIQnlQVDRQTjlVN2dWS2NkVFltdU4yeTJRIIEC',
+    bilibiliSessData: '',
     danmakuSources: [
         {
             id: 'bilibili',
