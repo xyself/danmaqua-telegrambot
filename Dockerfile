@@ -15,4 +15,5 @@ RUN npm install -g pm2@latest
 COPY . /usr/src/dmq-bot
 
 # Start services (using sh -c to chain commands)
-CMD ["sh", "-c", "pm2 start /usr/src/dmq-bot/ecosystem.config.js && pm2 logs danmaqua-bot dmsrc-bilibili dmsrc-douyu"]
+# 使用 PM2 的 Docker 专用模式
+CMD ["pm2-runtime", "start", "/usr/src/dmq-bot/ecosystem.config.js"]
