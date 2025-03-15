@@ -2,6 +2,7 @@ const { Danmaku, BaseDanmakuWebSocketSource } = require('../common');
 const DouyuDM = require('douyudm');
 const cron = require('node-cron');
 const douyuConfig = require('../../dmsrc.config').douyu;
+const fs = require('fs');
 
 const BATCH_RECONNECT_DELAY = 1000 * 10;
 
@@ -25,6 +26,10 @@ class DouyuDanmakuSource extends BaseDanmakuWebSocketSource {
     }
 
     createLive(roomId) {
+        this.logger.debug(`开始创建斗鱼房间连接: roomId=${roomId}`);
+        this.winstonLogger.debug(`开始创建斗鱼房间连接: roomId=${roomId}`);
+        console.log(`开始创建斗鱼房间连接: roomId=${roomId}`);
+        
         let live;
         try {
             live = new DouyuDM(roomId, { 
@@ -70,11 +75,56 @@ class DouyuDanmakuSource extends BaseDanmakuWebSocketSource {
                     },
                     text: dmText,
                     timestamp: dmTimestamp,
-                    roomId: roomId
+                    roomId: roomId,
+                    type: 'danmaku'
                 });
                 this.sendDanmaku(danmaku);
             } catch (e) {
                 this.logger.error(`Error processing douyu danmaku for room ${roomId}: ${e.message}`, e);
+            }
+        });
+
+        // 处理用户进入房间消息
+        live.on('uenter', (data) => {
+            try {
+                if (!data || typeof data !== 'object') {
+                    this.logger.warn(`Invalid uenter data received for room ${roomId}`);
+                    return;
+                }
+
+                const dmSenderUid = data.uid;
+                const dmSenderUsername = data.nn;
+                const dmSenderUrl = 'https://yuba.douyu.com/wbapi/web/jumpusercenter?id=' + dmSenderUid +
+                    '&name=' + encodeURIComponent(dmSenderUsername);
+                const dmText = `进入直播间`;
+                const dmTimestamp = Math.floor(Date.now() / 1000);
+
+                if (!dmSenderUid || !dmSenderUsername) {
+                    this.logger.warn(`Incomplete uenter data received for room ${roomId}:`, data);
+                    return;
+                }
+
+                // 添加粉丝牌信息（如果有）
+                let medalInfo = '';
+                if (data.bl && data.bnn) {
+                    medalInfo = `[${data.bnn}${data.bl}]`;
+                }
+
+                const danmaku = new Danmaku({
+                    sender: {
+                        uid: dmSenderUid,
+                        username: dmSenderUsername,
+                        url: dmSenderUrl,
+                        medal: medalInfo
+                    },
+                    text: dmText,
+                    timestamp: dmTimestamp,
+                    roomId: roomId,
+                    type: 'enter'
+                });
+                this.sendDanmaku(danmaku);
+            } catch (e) {
+                this.logger.error(`Error processing douyu enter for room ${roomId}: ${e.message}`, e);
             }
         });
 
@@ -93,6 +143,10 @@ class DouyuDanmakuSource extends BaseDanmakuWebSocketSource {
     }
 
     onJoin(roomId) {
+        this.logger.debug(`斗鱼房间加入请求: roomId=${roomId}`);
+        this.winstonLogger.debug(`斗鱼房间加入请求: roomId=${roomId}`);
+        console.log(`斗鱼房间加入请求: roomId=${roomId}, 调用堆栈: ${new Error().stack}`);
+        
         super.onJoin(roomId);
         if (this.isConnected(roomId)) {
             this.liveList[roomId].counter++;

@@ -2,22 +2,52 @@ const http = require('http');
 const ioServer = require('socket.io');
 const log4js = require('log4js');
 const path = require('path');
+const winston = require('winston');
+require('winston-daily-rotate-file');
 
 const MSG_JOIN_ROOM = 'join_room';
 const MSG_LEAVE_ROOM = 'leave_room';
 const MSG_RECONNECT_ROOM = 'reconnect_room';
 
 class Danmaku {
-    constructor({sender: {uid, username, url}, text, timestamp, roomId}) {
-        this.sender = {uid, username, url};
+    constructor({sender: {uid, username, url, medal}, text, timestamp, roomId, type, price}) {
+        this.sender = {uid, username, url, medal};
         this.text = text;
         this.timestamp = timestamp;
         this.roomId = roomId;
+        this.type = type || 'danmaku'; // 默认为普通弹幕
+        this.price = price || 0; // 用于SC价格
     }
 }
 
 class BaseDanmakuWebSocketSource {
     constructor(config) {
+        // 初始化winston日志
+        const transport = new winston.transports.DailyRotateFile({
+            filename: path.join(config.logsDir, 'danmaku-source-%DATE%.log'),
+            datePattern: 'YYYY-MM-DD',
+            zippedArchive: false,
+            maxSize: '20m',
+            maxFiles: '14d'
+        });
+
+        transport.on('error', (error) => {
+            console.error('Winston日志错误:', error);
+        });
+
+        const logger = winston.createLogger({
+            level: 'debug',
+            format: winston.format.combine(
+                winston.format.timestamp(),
+                winston.format.printf(info => `${info.timestamp} ${info.level}: ${info.message}`)
+            ),
+            transports: [
+                new winston.transports.Console(),
+                transport
+            ]
+        });
+
+        // 配置log4js
         log4js.configure({
             appenders: {
                 stdout: { type: 'stdout' },
@@ -37,6 +67,7 @@ class BaseDanmakuWebSocketSource {
             }
         });
         this.logger = log4js.getLogger('default');
+        this.winstonLogger = logger;
         this.port = config.port;
         this.basicAuth = config.basicAuth;
         this.server = http.createServer();
@@ -100,6 +131,16 @@ class BaseDanmakuWebSocketSource {
     }
 
     sendDanmaku(danmaku) {
+        // 过滤掉系统通知类礼物消息
+        if (danmaku.text && (
+            danmaku.text.includes('投喂') || 
+            (danmaku.text.includes('赠送') && danmaku.text.includes('个')) ||
+            danmaku.text.match(/<%.*%>.*<%.*%>/)  // 匹配系统通知格式 <%用户名%>操作<%用户名%>
+        )) {
+            // 这是系统礼物通知，不转发
+            return;
+        }
+        
         this.io.sockets.emit('danmaku', JSON.stringify(danmaku));
     }
 

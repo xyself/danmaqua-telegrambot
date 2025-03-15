@@ -8,17 +8,51 @@ const HttpsProxyAgent = require('https-proxy-agent');
 const { DanmakuSourceManager } = require('./api');
 const log4js = require('log4js');
 const path = require('path');
+const winston = require('winston');
+require('winston-daily-rotate-file');
+const fs = require('fs');
 
 const DanmaquaBot = require('./bot-core');
+
+// 监控文件系统操作
+const originalWriteFileSync = fs.writeFileSync;
+fs.writeFileSync = function(path, data, options) {
+    console.log(`[文件系统监控] 写入文件: ${path}`);
+    console.log(`[文件系统监控] 调用堆栈: ${new Error().stack}`);
+    return originalWriteFileSync.apply(this, arguments);
+};
 
 class Application {
     constructor(botConfig) {
         // 初始化日志
+        const transport = new winston.transports.DailyRotateFile({
+            filename: path.join(botConfig.logsDir, 'access-log-%DATE%.log'),
+            datePattern: 'YYYY-MM-DD',
+            zippedArchive: false,
+            maxSize: '20m',
+            maxFiles: '14d'
+        });
+
+        transport.on('error', (error) => {
+            console.error('Winston日志错误:', error);
+        });
+
+        const logger = winston.createLogger({
+            level: 'debug',
+            format: winston.format.combine(
+                winston.format.timestamp(),
+                winston.format.printf(info => `${info.timestamp} ${info.level}: ${info.message}`)
+            ),
+            transports: [
+                new winston.transports.Console(),
+                transport
+            ]
+        });
+
+        // 配置log4js使用winston
         log4js.configure({
             appenders: {
-                stdout: {
-                    type: 'stdout'
-                },
+                stdout: { type: 'stdout' },
                 outfile: {
                     type: 'dateFile',
                     filename: path.join(botConfig.logsDir, 'access-log'),
@@ -38,9 +72,11 @@ class Application {
                 }
             }
         });
+        
         this.logger = {
             default: log4js.getLogger('default'),
-            access: log4js.getLogger('access')
+            access: log4js.getLogger('access'),
+            winston: logger
         };
         // 初始化 Bot 数据库
         settings.init(botConfig, true);
@@ -67,9 +103,9 @@ class Application {
                 logger: this.logger,
             }),
             // 初始化统计器
-            statistics: new DanmakuStatistics(botConfig, this.logger),
+            statistics: botConfig.statistics.enabled ? new DanmakuStatistics(botConfig, this.logger) : null,
             // 初始化限流器
-            rateLimiter: new RateLimiter(botConfig, this.logger),
+            rateLimiter: botConfig.rateLimit.enabled ? new RateLimiter(botConfig, this.logger) : null,
         });
         // 设置弹幕源事件回调
         this.dmSrc.on('danmaku', (danmaku) => {
@@ -95,6 +131,17 @@ class Application {
         if (!this.bot.botUser) {
             return;
         }
+        
+        // 过滤系统礼物通知，如"xx投喂xx"这类消息
+        if (danmaku.text && (
+            danmaku.text.includes('投喂') || 
+            (danmaku.text.includes('赠送') && danmaku.text.includes('个')) ||
+            danmaku.text.match(/<%.*%>.*<%.*%>/)  // 匹配系统通知格式 <%用户名%>操作<%用户名%>
+        )) {
+            // 这是系统礼物通知，不处理
+            return;
+        }
+        
         for (let chatId of Object.keys(settings.chatsConfig)) {
             let chatConfig = settings.chatsConfig[chatId];
             if (chatConfig.roomId) {
