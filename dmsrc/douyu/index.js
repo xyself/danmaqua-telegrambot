@@ -2,7 +2,6 @@ const { Danmaku, BaseDanmakuWebSocketSource } = require('../common');
 const DouyuDM = require('douyudm');
 const cron = require('node-cron');
 const douyuConfig = require('../../dmsrc.config').douyu;
-const fs = require('fs');
 
 const BATCH_RECONNECT_DELAY = 1000 * 10;
 
@@ -26,10 +25,6 @@ class DouyuDanmakuSource extends BaseDanmakuWebSocketSource {
     }
 
     createLive(roomId) {
-        this.logger.debug(`开始创建斗鱼房间连接: roomId=${roomId}`);
-        this.winstonLogger.debug(`开始创建斗鱼房间连接: roomId=${roomId}`);
-        console.log(`开始创建斗鱼房间连接: roomId=${roomId}`);
-        
         let live;
         try {
             live = new DouyuDM(roomId, { 
@@ -143,10 +138,6 @@ class DouyuDanmakuSource extends BaseDanmakuWebSocketSource {
     }
 
     onJoin(roomId) {
-        this.logger.debug(`斗鱼房间加入请求: roomId=${roomId}`);
-        this.winstonLogger.debug(`斗鱼房间加入请求: roomId=${roomId}`);
-        console.log(`斗鱼房间加入请求: roomId=${roomId}, 调用堆栈: ${new Error().stack}`);
-        
         super.onJoin(roomId);
         if (this.isConnected(roomId)) {
             this.liveList[roomId].counter++;

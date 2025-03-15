@@ -363,25 +363,23 @@ class DanmaquaBot extends BotWrapper {
     };
 
     onActionBlockUser = async (ctx) => {
-        const actionUser = ctx.update.callback_query.from;
-        const chatId = ctx.match[1];
-        const uid = ctx.match[2];
-        if (!this.hasPermissionForChat(actionUser.id, chatId)) {
-            return await ctx.answerCbQuery('你没有权限设置这个对话。', true);
+        const targetChatId = parseInt(ctx.match[1]);
+        if (!this.hasPermissionForChat(ctx.callbackQuery.from.id, targetChatId)) {
+            return await this.safeAnswerCbQuery(ctx, '你没有权限设置这个对话。', true);
         }
-        if (!settings.getChatConfig(chatId)) {
-            return await ctx.answerCbQuery('这个对话没有在 Bot 中注册。', true);
+        const config = this.getRegisteredChatConfig(targetChatId);
+        if (!config) {
+            return await this.safeAnswerCbQuery(ctx, '这个对话没有在 Bot 中注册。', true);
         }
-        const isBlocked = settings.containsChatBlockedUser(chatId, uid);
-        if (isBlocked) {
-            settings.removeChatBlockedUsers(chatId, uid);
-        } else {
-            settings.addChatBlockedUsers(chatId, uid);
+        const targetUserId = parseInt(ctx.match[2]);
+        const action = ctx.match[3];
+        if (action === 'block') {
+            this.addBlockedUserId(targetChatId, targetUserId);
+            return await this.safeAnswerCbQuery(
+                ctx, 
+                '已把用户 ID ' + targetUserId + ' 加入 ' + targetChatId + ' 的屏蔽列表。',
+                true);
         }
-        return await ctx.answerCbQuery(
-            '用户 ' + uid + ' 已在对话 ' + chatId + ' 中被' + (isBlocked ? '解除屏蔽' : '屏蔽'),
-            true
-        );
     };
 
     onCommandRegisterChat = async (ctx) => {
@@ -417,25 +415,15 @@ class DanmaquaBot extends BotWrapper {
     };
 
     doRegisterChat = (chatId, roomId, source) => {
-        console.log(`[房间注册] 开始注册房间: chatId=${chatId}, roomId=${roomId}, source=${source}`);
-        console.log(`[房间注册] 调用堆栈: ${new Error().stack}`);
-        
         const curRoomId = settings.getChatConfig(chatId).roomId;
         let curDanmakuSource = settings.getChatConfig(chatId).danmakuSource;
         if (curRoomId !== roomId || curDanmakuSource !== source) {
             if (curRoomId) {
                 this.dmSrc.leaveRoom(curDanmakuSource, curRoomId);
             }
-            console.log(`[房间注册] 设置房间号: chatId=${chatId}, roomId=${roomId}`);
             settings.setChatRoomId(chatId, roomId);
-            
-            if (source) {
-                console.log(`[房间注册] 设置弹幕源: chatId=${chatId}, source=${source}`);
-                settings.setChatDanmakuSource(chatId, source);
-            }
-            
+            settings.setChatDanmakuSource(chatId, source);
             curDanmakuSource = settings.getChatConfig(chatId).danmakuSource;
-            console.log(`[房间注册] 加入房间: source=${curDanmakuSource}, roomId=${roomId}`);
             this.dmSrc.joinRoom(curDanmakuSource, roomId);
         }
     };
@@ -503,20 +491,22 @@ class DanmaquaBot extends BotWrapper {
         if (targetPage >= 0 && targetPage < this.getManagedChatsPageCount(userId)) {
             const keyboard = await this.createManageChatsMessageKeyboard(userId, targetPage);
             await ctx.editMessageReplyMarkup(keyboard);
-            return await ctx.answerCbQuery();
+            return await this.safeAnswerCbQuery(ctx);
         } else {
-            return await ctx.answerCbQuery('你选择的页数 ' + targetPage + ' 不存在。', true);
+            return await this.safeAnswerCbQuery(ctx, '你选择的页数 ' + targetPage + ' 不存在。', true);
         }
     };
 
     onActionManageChat = async (ctx) => {
         const targetChatId = parseInt(ctx.match[1]);
         if (!await this.canSendMessageToChat(targetChatId)) {
-            return await ctx.answerCbQuery(
-                '这个机器人无法发送消息给对话：' + targetChatId + '。请检查权限配置是否正确。', true);
+            return await this.safeAnswerCbQuery(
+                ctx,
+                '这个机器人无法发送消息给对话：' + targetChatId + '。请检查权限配置是否正确。', 
+                true);
         }
         this.requestManageChat(ctx, targetChatId);
-        return await ctx.answerCbQuery();
+        return await this.safeAnswerCbQuery(ctx);
     };
 
     requestManageChat = async (ctx, chatId) => {
@@ -566,13 +556,13 @@ class DanmaquaBot extends BotWrapper {
         ctx.reply(`已经对直播房间 ${dmSrc} ${roomId} 重新连接中。` +
             `（由于目前是相同直播房间的所有对话共用一个弹幕连接，可能会影响到其它频道的弹幕转发）`);
         this.user_access_log(ctx.update.callback_query.from.id, 'Reconnect room: ' + dmSrc + ' ' + roomId);
-        return await ctx.answerCbQuery();
+         return await this.safeAnswerCbQuery(ctx);
     };
 
     onActionUnregisterChat = async (ctx) => {
         const targetChatId = parseInt(ctx.match[1]);
         this.requestUnregisterChat(ctx, targetChatId);
-        return await ctx.answerCbQuery();
+         return await this.safeAnswerCbQuery(ctx);
     };
 
     onActionConfirmUnregisterChat = async (ctx) => {
@@ -580,13 +570,13 @@ class DanmaquaBot extends BotWrapper {
         const regRoomId = settings.getChatConfig(chatId).roomId;
         const regSource = settings.getChatConfig(chatId).danmakuSource;
         if (!regRoomId) {
-            return await ctx.answerCbQuery('这个对话未注册任何弹幕源。', true);
+            return await this.safeAnswerCbQuery(ctx, '这个对话未注册任何弹幕源。', true);
         }
         settings.deleteChatConfig(chatId);
         this.dmSrc.leaveRoom(regSource, regRoomId);
         ctx.reply(`对话 id=${chatId} 已成功取消注册。`);
         this.user_access_log(ctx.update.callback_query.from.id, 'Unregistered chat id=' + chatId);
-        return await ctx.answerCbQuery();
+         return await this.safeAnswerCbQuery(ctx);
     };
 
     requestUnregisterChat = async (ctx, chatId) => {
@@ -614,7 +604,7 @@ class DanmaquaBot extends BotWrapper {
             '回复 /cancel 退出互动式对话。';
             
         ctx.reply(replyText, getMarkdownOptions());
-        return await ctx.answerCbQuery();
+         return await this.safeAnswerCbQuery(ctx);
     };
 
     onActionChangePattern = async (ctx) => {
@@ -629,12 +619,12 @@ class DanmaquaBot extends BotWrapper {
             '回复 /cancel 退出互动式对话。';
             
         ctx.reply(replyText, getMarkdownOptions());
-        return await ctx.answerCbQuery();
+         return await this.safeAnswerCbQuery(ctx);
     };
 
     onActionChangeAdmin = async (ctx) => {
         if (!this.hasUserPermissionForBot(ctx.update.callback_query.from.id)) {
-            return await ctx.answerCbQuery('很抱歉，这项操作只有 Bot 管理员可以使用。', true);
+            return await this.safeAnswerCbQuery(ctx, '很抱歉，这项操作只有 Bot 管理员可以使用。', true);
         }
         const targetChatId = parseInt(ctx.match[1]);
         settings.setUserState(ctx.update.callback_query.from.id,
@@ -644,33 +634,33 @@ class DanmaquaBot extends BotWrapper {
             '管理员可以对该频道修改\n\n' +
             '当前设置：`' + settings.getChatConfig(targetChatId).admin + '`\n' +
             '回复 /cancel 退出互动式对话。', { parse_mode: 'Markdown' });
-        return await ctx.answerCbQuery();
+         return await this.safeAnswerCbQuery(ctx);
     };
 
     onActionChangeBlockedUsers = async (ctx) => {
         const targetChatId = parseInt(ctx.match[1]);
         if (!this.hasPermissionForChat(ctx.update.callback_query.from.id, targetChatId)) {
-            return await ctx.answerCbQuery('你没有权限设置这个对话。', true);
+            return await this.safeAnswerCbQuery(ctx, '你没有权限设置这个对话。', true);
         }
         settings.setUserState(ctx.update.callback_query.from.id,
             USER_STATE_CODE_CHAT_CHANGE_BLOCK_USERS,
             targetChatId);
         
         ctx.reply(this.getChangeBlockedUsersMessageText(targetChatId), { parse_mode: 'Markdown' });
-        return await ctx.answerCbQuery();
+         return await this.safeAnswerCbQuery(ctx);
     };
 
     onActionManageSchedules = async (ctx) => {
         const targetChatId = parseInt(ctx.match[1]);
         if (!this.hasPermissionForChat(ctx.update.callback_query.from.id, targetChatId)) {
-            return await ctx.answerCbQuery('你没有权限设置这个对话。', true);
+            return await this.safeAnswerCbQuery(ctx, '你没有权限设置这个对话。', true);
         }
         settings.setUserState(ctx.update.callback_query.from.id,
             USER_STATE_CODE_CHAT_MANAGE_SCHEDULES,
             targetChatId);
         
         ctx.reply(this.getManageSchedulesMessageText(targetChatId), { parse_mode: 'Markdown' });
-        return await ctx.answerCbQuery();
+         return await this.safeAnswerCbQuery(ctx);
     };
 
     onCommandManageChat = async (ctx) => {

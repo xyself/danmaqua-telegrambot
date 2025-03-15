@@ -210,9 +210,8 @@ class DanmakuHandler extends BaseHandler {
     // 处理系统通知消息（礼物、活动等），但不转发
     _on_notice_msg(client, message) {
         try {
-            // 不再记录系统通知日志
-            // 如果需要调试可以取消注释下面这行
-            // this.source.logger.debug(`[${this.roomId}] 系统通知: ${message.msg_common || message.msg_self || JSON.stringify(message)}`);
+            // 记录日志但不转发
+            this.source.logger.debug(`[${this.roomId}] 系统通知: ${message.msg_common || message.msg_self || JSON.stringify(message)}`);
         } catch (e) {
             this.source.logger.error(`Error processing bilibili notice for room ${this.roomId}: ${e.message}`, e);
         }
@@ -221,9 +220,8 @@ class DanmakuHandler extends BaseHandler {
     // 处理系统消息，但不转发
     _on_sys_msg(client, message) {
         try {
-            // 不再记录系统消息日志
-            // 如果需要调试可以取消注释下面这行
-            // this.source.logger.debug(`[${this.roomId}] 系统消息: ${message.msg || JSON.stringify(message)}`);
+            // 记录日志但不转发
+            this.source.logger.debug(`[${this.roomId}] 系统消息: ${message.msg || JSON.stringify(message)}`);
         } catch (e) {
             this.source.logger.error(`Error processing bilibili system message for room ${this.roomId}: ${e.message}`, e);
         }

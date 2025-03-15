@@ -131,16 +131,6 @@ class BaseDanmakuWebSocketSource {
     }
 
     sendDanmaku(danmaku) {
-        // 过滤掉系统通知类礼物消息
-        if (danmaku.text && (
-            danmaku.text.includes('投喂') || 
-            (danmaku.text.includes('赠送') && danmaku.text.includes('个')) ||
-            danmaku.text.match(/<%.*%>.*<%.*%>/)  // 匹配系统通知格式 <%用户名%>操作<%用户名%>
-        )) {
-            // 这是系统礼物通知，不转发
-            return;
-        }
-        
         this.io.sockets.emit('danmaku', JSON.stringify(danmaku));
     }
 

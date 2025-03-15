@@ -72,24 +72,6 @@ class DanmakuSourceManager extends EventEmitter {
     }
 
     joinRoom(sourceId, roomId) {
-        console.log(`[API调用] 加入房间: sourceId=${sourceId}, roomId=${roomId}`);
-        console.log(`[API调用] 调用堆栈: ${new Error().stack}`);
-        
-        // 防止错误的文件创建
-        if (typeof roomId === 'string' || typeof roomId === 'number') {
-            console.log(`[API调用] 房间号类型: ${typeof roomId}, 值: ${roomId}`);
-            // 确认不是对象或数组
-            if (typeof roomId === 'object') {
-                console.error(`[API调用] 错误: roomId是对象类型!`);
-                return;
-            }
-        }
-        
-        // 检查当前目录
-        const fs = require('fs');
-        const currentDir = process.cwd();
-        console.log(`[API调用] 当前工作目录: ${currentDir}`);
-        
         this.sourceInstance[sourceId].join(roomId);
     }
 

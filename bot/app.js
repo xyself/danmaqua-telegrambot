@@ -10,17 +10,8 @@ const log4js = require('log4js');
 const path = require('path');
 const winston = require('winston');
 require('winston-daily-rotate-file');
-const fs = require('fs');
 
 const DanmaquaBot = require('./bot-core');
-
-// 监控文件系统操作
-const originalWriteFileSync = fs.writeFileSync;
-fs.writeFileSync = function(path, data, options) {
-    console.log(`[文件系统监控] 写入文件: ${path}`);
-    console.log(`[文件系统监控] 调用堆栈: ${new Error().stack}`);
-    return originalWriteFileSync.apply(this, arguments);
-};
 
 class Application {
     constructor(botConfig) {
@@ -131,17 +122,6 @@ class Application {
         if (!this.bot.botUser) {
             return;
         }
-        
-        // 过滤系统礼物通知，如"xx投喂xx"这类消息
-        if (danmaku.text && (
-            danmaku.text.includes('投喂') || 
-            (danmaku.text.includes('赠送') && danmaku.text.includes('个')) ||
-            danmaku.text.match(/<%.*%>.*<%.*%>/)  // 匹配系统通知格式 <%用户名%>操作<%用户名%>
-        )) {
-            // 这是系统礼物通知，不处理
-            return;
-        }
-        
         for (let chatId of Object.keys(settings.chatsConfig)) {
             let chatConfig = settings.chatsConfig[chatId];
             if (chatConfig.roomId) {
