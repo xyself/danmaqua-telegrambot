@@ -1,5 +1,26 @@
 {
   "dependencies": {
     "express": "^4.21.2"
-  }
+  },
+  "name": "danmaqua-telegrambot",
+  "version": "1.0.0",
+  "description": "Danmaqua Telegram Bot ======",
+  "main": "bot.config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xyself/danmaqua-telegrambot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/xyself/danmaqua-telegrambot/issues"
+  },
+  "homepage": "https://github.com/xyself/danmaqua-telegrambot#readme"
 }
