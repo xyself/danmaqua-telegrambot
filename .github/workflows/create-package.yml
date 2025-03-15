@@ -16,12 +16,12 @@ jobs:
       - name: 设置 Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '23'  # 选择你需要的Node.js版本
+          node-version: '16'  # 选择你需要的Node.js版本
 
       - name: 创建 package.json 和 package-lock.json
         run: |
           echo '{}' > package.json  # 创建一个空的 package.json
-          npm install --save <your-dependencies>  # 安装依赖并生成 package-lock.json
+          npm install --save express  # 替换为你需要的依赖项
 
       - name: 提交更改
         run: |
