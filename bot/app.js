@@ -8,17 +8,42 @@ const HttpsProxyAgent = require('https-proxy-agent');
 const { DanmakuSourceManager } = require('./api');
 const log4js = require('log4js');
 const path = require('path');
+const winston = require('winston');
+require('winston-daily-rotate-file');
 
 const DanmaquaBot = require('./bot-core');
 
 class Application {
     constructor(botConfig) {
         // 初始化日志
+        const transport = new winston.transports.DailyRotateFile({
+            filename: path.join(botConfig.logsDir, 'access-log-%DATE%.log'),
+            datePattern: 'YYYY-MM-DD',
+            zippedArchive: false,
+            maxSize: '20m',
+            maxFiles: '14d'
+        });
+
+        transport.on('error', (error) => {
+            console.error('Winston日志错误:', error);
+        });
+
+        const logger = winston.createLogger({
+            level: 'debug',
+            format: winston.format.combine(
+                winston.format.timestamp(),
+                winston.format.printf(info => `${info.timestamp} ${info.level}: ${info.message}`)
+            ),
+            transports: [
+                new winston.transports.Console(),
+                transport
+            ]
+        });
+
+        // 配置log4js使用winston
         log4js.configure({
             appenders: {
-                stdout: {
-                    type: 'stdout'
-                },
+                stdout: { type: 'stdout' },
                 outfile: {
                     type: 'dateFile',
                     filename: path.join(botConfig.logsDir, 'access-log'),
@@ -38,9 +63,11 @@ class Application {
                 }
             }
         });
+        
         this.logger = {
             default: log4js.getLogger('default'),
-            access: log4js.getLogger('access')
+            access: log4js.getLogger('access'),
+            winston: logger
         };
         // 初始化 Bot 数据库
         settings.init(botConfig, true);
@@ -67,9 +94,9 @@ class Application {
                 logger: this.logger,
             }),
             // 初始化统计器
-            statistics: new DanmakuStatistics(botConfig, this.logger),
+            statistics: botConfig.statistics.enabled ? new DanmakuStatistics(botConfig, this.logger) : null,
             // 初始化限流器
-            rateLimiter: new RateLimiter(botConfig, this.logger),
+            rateLimiter: botConfig.rateLimit.enabled ? new RateLimiter(botConfig, this.logger) : null,
         });
         // 设置弹幕源事件回调
         this.dmSrc.on('danmaku', (danmaku) => {

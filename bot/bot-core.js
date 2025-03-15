@@ -116,20 +116,90 @@ class DanmaquaBot extends BotWrapper {
                 callback: this.onCommandStatUserQuery
             },
         ]);
-        this.addActions([
-            [/^manage_chat:([-\d]+)/, this.onActionManageChat],
-            [/^manage_chats_pages:(\d+)/, this.onActionManageChatsPages],
-            [/^change_danmaku_src:([-\d]+)/, this.onActionChangeDanmakuSrc],
-            [/^change_pattern:([-\d]+)/, this.onActionChangePattern],
-            [/^change_admin:([-\d]+)/, this.onActionChangeAdmin],
-            [/^change_blocked_users:([-\d]+)/, this.onActionChangeBlockedUsers],
-            [/^unregister_chat:([-\d]+)/, this.onActionUnregisterChat],
-            [/^confirm_unregister_chat:([-\d]+)/, this.onActionConfirmUnregisterChat],
-            [/^reconnect_room:([a-zA-Z\d]+)_([-\d]+)/, this.onActionReconnectRoom],
-            [/^block_user:([-\d]+):([-_a-zA-Z\d]+)/, this.onActionBlockUser],
-            [/^manage_schedules:([-\d]+)/, this.onActionManageSchedules],
-            [/^stat_by_chat:([-\d]+)/, this.onActionStatisticsByChat],
-        ]);
+        this.bot.action(/^manage_chat:([-\d]+)/, async (ctx) => {
+            try {
+                await this.onActionManageChat(ctx);
+            } catch (e) {
+                this.logger.default.error(e);
+            }
+        });
+        this.bot.action(/^manage_chats_pages:(\d+)/, async (ctx) => {
+            try {
+                await this.onActionManageChatsPages(ctx);
+            } catch (e) {
+                this.logger.default.error(e);
+            }
+        });
+        this.bot.action(/^change_danmaku_src:([-\d]+)/, async (ctx) => {
+            try {
+                await this.onActionChangeDanmakuSrc(ctx);
+            } catch (e) {
+                this.logger.default.error(e);
+            }
+        });
+        this.bot.action(/^change_pattern:([-\d]+)/, async (ctx) => {
+            try {
+                await this.onActionChangePattern(ctx);
+            } catch (e) {
+                this.logger.default.error(e);
+            }
+        });
+        this.bot.action(/^change_admin:([-\d]+)/, async (ctx) => {
+            try {
+                await this.onActionChangeAdmin(ctx);
+            } catch (e) {
+                this.logger.default.error(e);
+            }
+        });
+        this.bot.action(/^change_blocked_users:([-\d]+)/, async (ctx) => {
+            try {
+                await this.onActionChangeBlockedUsers(ctx);
+            } catch (e) {
+                this.logger.default.error(e);
+            }
+        });
+        this.bot.action(/^unregister_chat:([-\d]+)/, async (ctx) => {
+            try {
+                await this.onActionUnregisterChat(ctx);
+            } catch (e) {
+                this.logger.default.error(e);
+            }
+        });
+        this.bot.action(/^confirm_unregister_chat:([-\d]+)/, async (ctx) => {
+            try {
+                await this.onActionConfirmUnregisterChat(ctx);
+            } catch (e) {
+                this.logger.default.error(e);
+            }
+        });
+        this.bot.action(/^reconnect_room:([a-zA-Z\d]+)_([-\d]+)/, async (ctx) => {
+            try {
+                await this.onActionReconnectRoom(ctx);
+            } catch (e) {
+                this.logger.default.error(e);
+            }
+        });
+        this.bot.action(/^block_user:([-\d]+):([-_a-zA-Z\d]+)/, async (ctx) => {
+            try {
+                await this.onActionBlockUser(ctx);
+            } catch (e) {
+                this.logger.default.error(e);
+            }
+        });
+        this.bot.action(/^manage_schedules:([-\d]+)/, async (ctx) => {
+            try {
+                await this.onActionManageSchedules(ctx);
+            } catch (e) {
+                this.logger.default.error(e);
+            }
+        });
+        this.bot.action(/^stat_by_chat:([-\d]+)/, async (ctx) => {
+            try {
+                await this.onActionStatisticsByChat(ctx);
+            } catch (e) {
+                this.logger.default.error(e);
+            }
+        });
 
         this.bot.command('cancel', this.onCommandCancel);
         this.bot.on('message', this.onMessage);
@@ -137,7 +207,7 @@ class DanmaquaBot extends BotWrapper {
 
     notifyDanmaku = async (chatId, data, { hideUsername = false }) => {
         const userIdWithSrc = data.sourceId + '_' + data.sender.uid;
-        if (this.statistics.enabled) {
+        if (this.statistics && this.statistics.enabled) {
             const roomIdWithSrc = data.sourceId + '_' + data.roomId;
             this.statistics.incrementSentences(userIdWithSrc, roomIdWithSrc);
             this.statistics.incrementWordsBy(userIdWithSrc, roomIdWithSrc, data.text.length);
@@ -148,7 +218,7 @@ class DanmaquaBot extends BotWrapper {
             msg += `<a href="${url}">${data.sender.username}</a>：`;
         }
         msg += data.text;
-        if (this.rateLimiter.enabled) {
+        if (this.rateLimiter && this.rateLimiter.enabled) {
             const res = await this.rateLimiter.get(chatId);
             if (!res.available) {
                 this.logger.default.debug('Sending messages rate limit exceeded.');
@@ -676,7 +746,7 @@ class DanmaquaBot extends BotWrapper {
     };
 
     onCommandStatUsers = async (ctx) => {
-        if (!this.statistics.enabled) {
+        if (!this.statistics || !this.statistics.enabled) {
             ctx.reply('Bot 统计功能已关闭，请联系 Bot 管理员。');
             return;
         }
@@ -690,7 +760,7 @@ class DanmaquaBot extends BotWrapper {
     };
 
     onCommandStatUserQuery = async (ctx) => {
-        if (!this.statistics.enabled) {
+        if (!this.statistics || !this.statistics.enabled) {
             ctx.reply('Bot 统计功能已关闭，请联系 Bot 管理员。');
             return;
         }
@@ -765,8 +835,8 @@ class DanmaquaBot extends BotWrapper {
         }
         const newDanmakuSource = settings.getChatConfig(chatId).danmakuSource;
         ctx.reply(`已成功为 id=${chatId} 频道注册了 ${newDanmakuSource}:${roomId} 房间弹幕转发。`);
-        this.user_access_log(ctx.message.from.id, `Set chat id=${chatId} danmaku source to` +
-            ` ${newDanmakuSource}:${roomId}`)
+        this.user_access_log(ctx.message.from.id, `Set chat id=${chatId} danmaku source to`
+            + ` ${newDanmakuSource}:${roomId}`)
         settings.clearUserState(ctx.message.from.id);
     };
 
