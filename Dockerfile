@@ -1,10 +1,7 @@
 FROM node:23-alpine
-# Prepare package registry
-RUN npm config set registry http://mirrors.cloud.tencent.com/npm/
 
 # Prepare working directory
 WORKDIR /usr/src/dmq-bot
-
 # Install dependencies
 COPY package.json package-lock.json ./
 RUN npm install
