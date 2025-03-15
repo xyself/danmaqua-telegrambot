@@ -1,5 +1,4 @@
-FROM node:14-alpine
-
+FROM node:23-alpine
 # Prepare package registry
 RUN npm config set registry http://mirrors.cloud.tencent.com/npm/
 
@@ -21,4 +20,3 @@ COPY . /usr/src/dmq-bot
 # Start services
 CMD pm2 start /usr/src/dmq-bot/ecosystem.config.js \
     && pm2 logs "/(danmaqua-bot|dmsrc-bilibili|dmsrc-douyu)/"
-

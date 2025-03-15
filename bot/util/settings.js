@@ -397,6 +397,10 @@ class Settings {
         return this.globalConfig.pattern || DEFAULT_PATTERN;
     }
 
+    getGlobalPattern() {
+        return this.globalConfig.pattern || DEFAULT_PATTERN;
+    }
+
     setGlobalAdmin(admin) {
         if (admin instanceof Array) {
             this.globalConfig.admin = admin;
@@ -412,6 +416,39 @@ class Settings {
         }
         this.globalConfig.danmakuSource = id;
         this._pendingChanges.global = true;
+    }
+
+    registerChat(config) {
+        if (!config || !config.chatId) {
+            throw new Error('Invalid chat config');
+        }
+        this._ensureChatConfig(config.chatId);
+        
+        // 设置聊天配置
+        if (config.roomId) this.setChatRoomId(config.chatId, config.roomId);
+        if (config.danmakuSource) this.setChatDanmakuSource(config.chatId, config.danmakuSource);
+        if (config.pattern) this.setChatPattern(config.chatId, config.pattern);
+        if (config.admin) this.setChatAdmin(config.chatId, config.admin);
+        if (config.blockedUsers) this.setChatBlockedUsers(config.chatId, config.blockedUsers);
+    }
+
+    getAllRegisteredChats() {
+        const result = [];
+        for (let chatId of Object.keys(this.chatsConfig)) {
+            const config = this.getChatConfig(chatId);
+            // 只返回有房间ID的聊天（已注册的）
+            if (config.roomId) {
+                result.push({
+                    chatId: parseInt(chatId),
+                    roomId: config.roomId,
+                    danmakuSource: config.danmakuSource,
+                    pattern: config.pattern,
+                    admin: config.admin,
+                    blockedUsers: config.blockedUsers
+                });
+            }
+        }
+        return result;
     }
 
     registerChat(config) {
