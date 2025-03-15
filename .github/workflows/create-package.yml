@@ -3,7 +3,7 @@ name: 创建 package.json 和 package-lock.json
 on:
   push:
     branches:
-      - master  # 或者你希望触发工作流的其他分支
+      - master  # 当 push 到 master 分支时触发
 
 jobs:
   create-package:
@@ -16,19 +16,20 @@ jobs:
       - name: 设置 Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '23'  # 选择你需要的Node.js版本
+          node-version: '23'  # 选择你需要的 Node.js 版本
 
       - name: 创建 package.json 和 package-lock.json
         run: |
-          npm init -y  # 创建一个完整的 package.json
-          npm install --save express  # 安装 express 依赖并生成 package-lock.json
+          rm -f package.json package-lock.json  # 确保旧文件已删除
+          npm init -y  # 创建 package.json
+          npm install express  # 安装 express 并生成 package-lock.json
 
       - name: 提交更改
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add package.json package-lock.json
-          git commit -m "创建 package.json 和 package-lock.json"
+          git diff --cached --quiet || git commit -m "创建 package.json 和 package-lock.json"
           git push
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 使用GitHub提供的token进行身份验证
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 使用 GitHub 提供的 token 进行身份验证
