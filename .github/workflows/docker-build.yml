@@ -6,6 +6,7 @@ on:
     tags: [ 'v*' ]
   pull_request:
     branches: [ "master" ]
+  workflow_dispatch: {}   # 添加手动触发
 
 env:
   # 设置DockerHub账户名（需要替换为你的DockerHub用户名）
@@ -54,4 +55,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max 
+          cache-to: type=gha,mode=max
