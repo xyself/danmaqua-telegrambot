@@ -40,3 +40,12 @@ Telegram: [@fython](https://t.me/fython)
 ## Licenses
 
 GPLv3
+
+## 自动构建Docker镜像
+
+本项目配置了GitHub Actions自动构建功能，可以自动构建Docker镜像并推送到DockerHub。要启用此功能，请在GitHub仓库设置中添加以下密钥：
+
+1. `DOCKERHUB_USERNAME`：你的DockerHub用户名
+2. `DOCKERHUB_TOKEN`：你的DockerHub访问令牌（在DockerHub的账户设置中生成）
+
+配置完成后，每次推送到master分支或创建标签（格式为v*）时，都会自动构建并推送镜像。
