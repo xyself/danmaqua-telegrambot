@@ -2,8 +2,6 @@ const http = require('http');
 const ioServer = require('socket.io');
 const log4js = require('log4js');
 const path = require('path');
-const winston = require('winston');
-require('winston-daily-rotate-file');
 
 const MSG_JOIN_ROOM = 'join_room';
 const MSG_LEAVE_ROOM = 'leave_room';
@@ -22,38 +20,13 @@ class Danmaku {
 
 class BaseDanmakuWebSocketSource {
     constructor(config) {
-        // 初始化winston日志
-        const transport = new winston.transports.DailyRotateFile({
-            filename: path.join(config.logsDir, 'danmaku-source-%DATE%.log'),
-            datePattern: 'YYYY-MM-DD',
-            zippedArchive: false,
-            maxSize: '20m',
-            maxFiles: '14d'
-        });
-
-        transport.on('error', (error) => {
-            console.error('Winston日志错误:', error);
-        });
-
-        const logger = winston.createLogger({
-            level: 'debug',
-            format: winston.format.combine(
-                winston.format.timestamp(),
-                winston.format.printf(info => `${info.timestamp} ${info.level}: ${info.message}`)
-            ),
-            transports: [
-                new winston.transports.Console(),
-                transport
-            ]
-        });
-
         // 配置log4js
         log4js.configure({
             appenders: {
                 stdout: { type: 'stdout' },
                 outfile: {
                     type: 'dateFile',
-                    filename: path.join(config.logsDir, 'access-log'),
+                    filename: path.join(config.logsDir, 'danmaku-source'),
                     pattern: 'yyyy-MM-dd.log',
                     alwaysIncludePattern: true,
                     keepFileExt: false
@@ -67,7 +40,6 @@ class BaseDanmakuWebSocketSource {
             }
         });
         this.logger = log4js.getLogger('default');
-        this.winstonLogger = logger;
         this.port = config.port;
         this.basicAuth = config.basicAuth;
         this.server = http.createServer();

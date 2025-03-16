@@ -8,39 +8,12 @@ const HttpsProxyAgent = require('https-proxy-agent');
 const { DanmakuSourceManager } = require('./api');
 const log4js = require('log4js');
 const path = require('path');
-const winston = require('winston');
-require('winston-daily-rotate-file');
 
 const DanmaquaBot = require('./bot-core');
 
 class Application {
     constructor(botConfig) {
-        // 初始化日志
-        const transport = new winston.transports.DailyRotateFile({
-            filename: path.join(botConfig.logsDir, 'access-log-%DATE%.log'),
-            datePattern: 'YYYY-MM-DD',
-            zippedArchive: false,
-            maxSize: '20m',
-            maxFiles: '14d'
-        });
-
-        transport.on('error', (error) => {
-            console.error('Winston日志错误:', error);
-        });
-
-        const logger = winston.createLogger({
-            level: 'debug',
-            format: winston.format.combine(
-                winston.format.timestamp(),
-                winston.format.printf(info => `${info.timestamp} ${info.level}: ${info.message}`)
-            ),
-            transports: [
-                new winston.transports.Console(),
-                transport
-            ]
-        });
-
-        // 配置log4js使用winston
+        // 配置log4js
         log4js.configure({
             appenders: {
                 stdout: { type: 'stdout' },
@@ -66,8 +39,7 @@ class Application {
         
         this.logger = {
             default: log4js.getLogger('default'),
-            access: log4js.getLogger('access'),
-            winston: logger
+            access: log4js.getLogger('access')
         };
         // 初始化 Bot 数据库
         settings.init(botConfig, true);
@@ -177,6 +149,12 @@ if (!botConfig.botProxy) {
 if (!botConfig.botAdmins || botConfig.botAdmins.length === 0) {
     if (process.env.DMQ_BOT_ADMINS) {
         botConfig.botAdmins = process.env.DMQ_BOT_ADMINS.split(',').map(Number);
+    }
+}
+// 读取环境变量中的SESSDATA
+if (!botConfig.SESSDATA || botConfig.SESSDATA.length === 0) {
+    if (process.env.DMQ_BILIBILI_SESSDATA) {
+        botConfig.SESSDATA = process.env.DMQ_BILIBILI_SESSDATA;
     }
 }
 new Application(botConfig).startBot();

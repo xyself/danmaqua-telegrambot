@@ -250,7 +250,7 @@ class BilibiliDanmakuSource extends BaseDanmakuWebSocketSource {
 
     createLive(roomId) {
         // 使用bot.config.js中的SESSDATA创建客户端
-        const SESSDATA = botConfig.bilibiliSessData;
+        const SESSDATA = botConfig.SESSDATA;
         const live = new BLiveClient(roomId, { sessData: SESSDATA });
         const handler = new DanmakuHandler(this, roomId);
         
