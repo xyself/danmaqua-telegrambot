@@ -139,6 +139,9 @@ class Application {
 if (!botConfig.botToken || botConfig.botToken.length === 0) {
     if (process.env.DMQ_BOT_TOKEN) {
         botConfig.botToken = process.env.DMQ_BOT_TOKEN;
+        console.log('使用环境变量中的Bot Token');
+    } else {
+        console.log('错误：找不到Bot Token，环境变量DMQ_BOT_TOKEN未设置或为空');
     }
 }
 if (!botConfig.botProxy) {
@@ -151,10 +154,13 @@ if (!botConfig.botAdmins || botConfig.botAdmins.length === 0) {
         botConfig.botAdmins = process.env.DMQ_BOT_ADMINS.split(',').map(Number);
     }
 }
-// 读取环境变量中的SESSDATA
-if (!botConfig.SESSDATA || botConfig.SESSDATA.length === 0) {
+// 读取环境变量中的bilibiliSessData
+if (!botConfig.bilibiliSessData || botConfig.bilibiliSessData.length === 0) {
     if (process.env.DMQ_BILIBILI_SESSDATA) {
-        botConfig.SESSDATA = process.env.DMQ_BILIBILI_SESSDATA;
+        botConfig.bilibiliSessData = process.env.DMQ_BILIBILI_SESSDATA;
+        console.log('使用环境变量中的B站SESSDATA');
+    } else {
+        console.log('警告：未设置B站SESSDATA，某些功能可能受限');
     }
 }
 new Application(botConfig).startBot();

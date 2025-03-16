@@ -6,7 +6,7 @@ module.exports = {
     botProxy: null,
     botAdmins: [],
     // B站登录Cookie中的SESSDATA值，用于获取弹幕用户名等信息
-    SessData: '',
+    bilibiliSessData: '',
     debugMode: false,
     rateLimit: {
         enabled: false,
