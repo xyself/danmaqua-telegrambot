@@ -235,8 +235,8 @@ class DanmaquaBot extends BotWrapper {
     };
 
     notifyActionDone = (chatId, action) => {
-        const msgText = 'Bot 已成功于 `' + new Date(Date.now()) + '` 执行操作 `' + action + '`';
-        const options = { parse_mode: 'Markdown' };
+        const msgText = 'Bot 已成功于 <code>' + new Date(Date.now()) + '</code> 执行操作 <code>' + escapeHtml(action) + '</code>';
+        const options = { parse_mode: 'HTML' };
         for (let admin of settings.getChatConfig(chatId).admin) {
             this.bot.telegram.sendMessage(admin, msgText, options).catch((e) => {
                 this.logger.default.error(e);
@@ -245,9 +245,9 @@ class DanmaquaBot extends BotWrapper {
     };
 
     notifyActionError = (chatId, action, e) => {
-        const msgText = 'Bot 在 `' + new Date(Date.now()) + '` 执行操作 `' + action +
-            '` 时遭遇错误：\n```' + e + '\n```\n';
-        const options = { parse_mode: 'Markdown' };
+        const msgText = 'Bot 在 <code>' + new Date(Date.now()) + '</code> 执行操作 <code>' + escapeHtml(action) +
+            '</code> 时遭遇错误：\n<pre>' + escapeHtml(e.toString()) + '</pre>\n';
+        const options = { parse_mode: 'HTML' };
         for (let admin of settings.getChatConfig(chatId).admin) {
             this.bot.telegram.sendMessage(admin, msgText, options).catch((e) => {
                 this.logger.default.error(e);
@@ -385,7 +385,7 @@ class DanmaquaBot extends BotWrapper {
     onCommandRegisterChat = async (ctx) => {
         let [_, chatId, roomId, source] = ctx.message.text.split(' ');
         if (!chatId || !roomId) {
-            ctx.reply('注册命令使用方法：/register\\_chat `chatId` `roomId` `[source]`', getMarkdownOptions());
+            ctx.reply('注册命令使用方法：/register_chat <code>chatId</code> <code>roomId</code> <code>[source]</code>', { parse_mode: 'HTML' });
             return;
         }
         if (isNaN(Number(roomId))) {
@@ -431,7 +431,7 @@ class DanmaquaBot extends BotWrapper {
     onCommandUnregisterChat = async (ctx) => {
         let [_, chatId] = ctx.message.text.split(' ');
         if (!chatId) {
-            ctx.reply('取消注册命令使用方法：/unregister\_chat `chatId`', { parse_mode: 'Markdown' });
+            ctx.reply('取消注册命令使用方法：/unregister_chat <code>chatId</code>', { parse_mode: 'HTML' });
             return;
         }
         const targetChat = await this.getChat(chatId || ctx.chat.id);
@@ -603,14 +603,14 @@ class DanmaquaBot extends BotWrapper {
         
         const replyText = '你正在编辑 id=' + targetChatId + ' 的弹幕房间号/弹幕源，' +
             '如果你只需要修改房间号，回复房间号即可。\n' +
-            '如果你需要修改弹幕源，请按格式回复：`[房间号] [弹幕源]` 。' +
-            '例如需要使用斗鱼 10 号房间弹幕，则回复：`10 douyu`\n\n' +
-            '当前设置：房间号=`' + settings.getChatConfig(targetChatId).roomId +
-            '`, 弹幕源=`' + settings.getChatConfig(targetChatId).danmakuSource + '`\n' +
+            '如果你需要修改弹幕源，请按格式回复：<code>[房间号] [弹幕源]</code>。' +
+            '例如需要使用斗鱼 10 号房间弹幕，则回复：<code>10 douyu</code>\n\n' +
+            '当前设置：房间号=<code>' + settings.getChatConfig(targetChatId).roomId +
+            '</code>, 弹幕源=<code>' + settings.getChatConfig(targetChatId).danmakuSource + '</code>\n' +
             '回复 /cancel 退出互动式对话。';
             
-        ctx.reply(replyText, getMarkdownOptions());
-         return await this.safeAnswerCbQuery(ctx);
+        ctx.reply(replyText, getHTMLOptions());
+        return await this.safeAnswerCbQuery(ctx);
     };
 
     onActionChangePattern = async (ctx) => {
@@ -621,11 +621,11 @@ class DanmaquaBot extends BotWrapper {
         
         const replyText = '你正在编辑 id=' + targetChatId + ' 的过滤规则，' +
             '符合过滤规则正则表达式的弹幕内容将会被转发到指定 id 的对话/频道中。\n\n' +
-            '当前设置：`' + settings.getChatConfig(targetChatId).pattern + '`\n' +
+            '当前设置：<code>' + escapeHtml(settings.getChatConfig(targetChatId).pattern) + '</code>\n' +
             '回复 /cancel 退出互动式对话。';
             
-        ctx.reply(replyText, getMarkdownOptions());
-         return await this.safeAnswerCbQuery(ctx);
+        ctx.reply(replyText, getHTMLOptions());
+        return await this.safeAnswerCbQuery(ctx);
     };
 
     onActionChangeAdmin = async (ctx) => {
@@ -638,9 +638,9 @@ class DanmaquaBot extends BotWrapper {
             targetChatId);
         ctx.reply('你正在编辑 id=' + targetChatId + ' 的管理员列表，' +
             '管理员可以对该频道修改\n\n' +
-            '当前设置：`' + settings.getChatConfig(targetChatId).admin + '`\n' +
-            '回复 /cancel 退出互动式对话。', { parse_mode: 'Markdown' });
-         return await this.safeAnswerCbQuery(ctx);
+            '当前设置：<code>' + escapeHtml(settings.getChatConfig(targetChatId).admin) + '</code>\n' +
+            '回复 /cancel 退出互动式对话。', { parse_mode: 'HTML' });
+        return await this.safeAnswerCbQuery(ctx);
     };
 
     onActionChangeBlockedUsers = async (ctx) => {
@@ -678,7 +678,7 @@ class DanmaquaBot extends BotWrapper {
     onCommandManageChat = async (ctx) => {
         let [_, chatId] = ctx.message.text.split(' ');
         if (!chatId) {
-            ctx.reply('管理频道命令使用方法：/manage\_chat `chatId`', { parse_mode: 'Markdown' });
+            ctx.reply('管理频道命令使用方法：/manage_chat <code>chatId</code>', { parse_mode: 'HTML' });
             return;
         }
         const targetChat = await this.getChat(chatId || ctx.chat.id);
@@ -701,9 +701,9 @@ class DanmaquaBot extends BotWrapper {
     onCommandListDMSrc = async (ctx) => {
         let msgText = 'Bot 支持的弹幕源：\n';
         for (let src of settings.danmakuSources) {
-            msgText += '- `' + src.id + '` : ' + src.description + '\n';
+            msgText += '- <code>' + escapeHtml(src.id) + '</code> : ' + escapeHtml(src.description) + '\n';
         }
-        ctx.reply(msgText, { parse_mode: 'Markdown' });
+        ctx.reply(msgText, { parse_mode: 'HTML' });
     };
 
     onCommandCancel = async (ctx) => {
@@ -719,13 +719,13 @@ class DanmaquaBot extends BotWrapper {
     onCommandSetDefaultPattern = async (ctx) => {
         let [_, pattern] = ctx.message.text.split(' ');
         if (!pattern) {
-            ctx.reply('请输入要设置的默认过滤规则。', { parse_mode: 'Markdown' });
+            ctx.reply('请输入要设置的默认过滤规则。', { parse_mode: 'HTML' });
             return;
         }
         try {
             new RegExp(pattern);
             settings.setGlobalPattern(pattern);
-            ctx.reply('成功设置默认过滤规则为：`' + pattern + '`', { parse_mode: 'Markdown' });
+            ctx.reply('成功设置默认过滤规则为：<code>' + escapeHtml(pattern) + '</code>', { parse_mode: 'HTML' });
             this.user_access_log(ctx.message.from.id, 'Set default pattern to ' + pattern);
         } catch (e) {
             ctx.reply('设置默认过滤规则失败，错误原因：' + e);
@@ -738,7 +738,7 @@ class DanmaquaBot extends BotWrapper {
             .map((value) => Number(value))
             .filter((value) => !isNaN(value));
         settings.setGlobalAdmin(admins);
-        ctx.reply('已设置默认管理员为 `' + admins.toString() + '`', { parse_mode: 'Markdown' });
+        ctx.reply('已设置默认管理员为 <code>' + escapeHtml(admins.toString()) + '</code>', { parse_mode: 'HTML' });
         this.user_access_log(ctx.message.from.id, 'Set default admin to ' + admins.toString());
     };
 
@@ -768,7 +768,7 @@ class DanmaquaBot extends BotWrapper {
             return;
         }
         const usersText = users.reduce((a, b) => `${a}, ${b}`);
-        ctx.reply('已统计同传弹幕发送信息的用户：\n`' + usersText + '`', { parse_mode: 'Markdown' });
+        ctx.reply('已统计同传弹幕发送信息的用户：\n<code>' + escapeHtml(usersText) + '</code>', { parse_mode: 'HTML' });
     };
 
     onCommandStatUserQuery = async (ctx) => {
@@ -855,13 +855,13 @@ class DanmaquaBot extends BotWrapper {
     onAnswerChangePattern = async (ctx, chatId) => {
         let pattern = ctx.message.text;
         if (!pattern) {
-            ctx.reply('请输入过滤规则正则表达式。', getMarkdownOptions());
+            ctx.reply('请输入过滤规则正则表达式。', getHTMLOptions());
             return;
         }
         try {
             new RegExp(pattern);
             settings.setChatPattern(chatId, pattern);
-            ctx.reply(`已成功为 id=${chatId} 频道设置了过滤规则：\`${pattern}\``, getMarkdownOptions());
+            ctx.reply(`已成功为 id=${chatId} 频道设置了过滤规则：<code>${escapeHtml(pattern)}</code>`, getHTMLOptions());
             this.user_access_log(ctx.message.from.id, `Set chat id=${chatId} pattern to ${pattern}`);
             settings.clearUserState(ctx.message.from.id);
         } catch (e) {
@@ -894,7 +894,7 @@ class DanmaquaBot extends BotWrapper {
             {
                 chat_id: chatId,
                 message_id: messageId,
-                parse_mode: 'Markdown'
+                parse_mode: 'HTML'
             });
     };
 
@@ -927,8 +927,8 @@ class DanmaquaBot extends BotWrapper {
                 return;
             }
             this.chatsScheduler.addScheduler(targetChatId, expression, action);
-            ctx.reply('添加计划任务 `' + expression + '` 成功。',
-                { parse_mode: 'Markdown', reply_to_message_id: ctx.message.message_id });
+            ctx.reply('添加计划任务 <code>' + escapeHtml(expression) + '</code> 成功。',
+                { parse_mode: 'HTML', reply_to_message_id: ctx.message.message_id });
             this.user_access_log(ctx.message.from.id,
                 `Add schedule: chatId=${chatId} expression=${expression} action=${action}`);
         } else if (operation === 'del') {
@@ -942,8 +942,8 @@ class DanmaquaBot extends BotWrapper {
                 return;
             }
             this.chatsScheduler.removeScheduler(targetChatId, expression);
-            ctx.reply('移除计划任务 `' + expression + '` 成功。',
-                { parse_mode: 'Markdown', reply_to_message_id: ctx.message.message_id });
+            ctx.reply('移除计划任务 <code>' + escapeHtml(expression) + '</code> 成功。',
+                { parse_mode: 'HTML', reply_to_message_id: ctx.message.message_id });
             this.user_access_log(ctx.message.from.id,
                 `Remove schedule: chatId=${chatId} expression=${expression}`);
         } else if (operation === 'clear') {
@@ -956,7 +956,7 @@ class DanmaquaBot extends BotWrapper {
         await this.bot.telegram.editMessageText(
             chatId, messageId, undefined,
             this.getManageSchedulesMessageText(targetChatId),
-            { parse_mode: 'Markdown' }
+            { parse_mode: 'HTML' }
         );
     };
 }
