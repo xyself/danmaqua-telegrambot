@@ -447,7 +447,7 @@ class DanmaquaBot extends BotWrapper {
         const buttons = [];
         for (let cfg of this.getManagedChatsConfigByPage(userId, page)) {
             const chat = await this.getChat(cfg.chatId);
-            let displayName = '' + cfg.chatId;
+            let displayName = '';
             if (chat) {
                 if (chat.title && !chat.username) {
                     displayName = chat.title;
@@ -511,19 +511,25 @@ class DanmaquaBot extends BotWrapper {
 
     requestManageChat = async (ctx, chatId) => {
         const chat = await this.getChat(chatId);
-        let displayName = '' + chat.id;
-        if (chat.title && !chat.username) {
+        let displayName = '';
+        if (!chat) {
+            return ctx.reply('找不到指定的频道, id: ' + chatId);
+        }
+        if (chat.type !== 'channel') {
+            return ctx.reply('只能管理频道, id: ' + chatId);
+        }
+        if (!chat.username) {
             displayName = chat.title;
-        } else if (!chat.title && chat.username) {
-            displayName = '@' + chat.username;
-        } else if (chat.title && chat.username) {
+        } else {
             displayName = chat.title + ' (@' + chat.username + ')';
         }
         const config = settings.getChatConfig(chatId);
         const dmSrc = config.danmakuSource;
         const roomId = config.roomId;
         const pattern = config.pattern.replace(/([_*[\]()~`>#+\-=|{}.!\\])/g, '\\$1');
-        let msgText = `你想要修改频道 "${displayName}" (id: ${chat.id}) 的什么设置？\n`;
+        
+        // 使用HTML解析模式代替Markdown
+        let msgText = `你想要修改频道 "${escapeHtml(displayName)}" (id: ${chat.id}) 的什么设置？\n`;
         msgText += `房间号/弹幕源：${roomId} ${dmSrc}\n`;
         msgText += '过滤规则：' + pattern;
 
@@ -546,7 +552,7 @@ class DanmaquaBot extends BotWrapper {
             ]
         };
 
-        ctx.reply(msgText, { parse_mode: 'Markdown', reply_markup: keyboard });
+        ctx.reply(msgText, { parse_mode: 'HTML', reply_markup: keyboard });
     };
 
     onActionReconnectRoom = async (ctx) => {
@@ -638,29 +644,35 @@ class DanmaquaBot extends BotWrapper {
     };
 
     onActionChangeBlockedUsers = async (ctx) => {
-        const targetChatId = parseInt(ctx.match[1]);
-        if (!this.hasPermissionForChat(ctx.update.callback_query.from.id, targetChatId)) {
-            return await this.safeAnswerCbQuery(ctx, '你没有权限设置这个对话。', true);
-        }
-        settings.setUserState(ctx.update.callback_query.from.id,
-            USER_STATE_CODE_CHAT_CHANGE_BLOCK_USERS,
-            targetChatId);
-        
-        ctx.reply(this.getChangeBlockedUsersMessageText(targetChatId), { parse_mode: 'Markdown' });
-         return await this.safeAnswerCbQuery(ctx);
+        const targetChatId = ctx.match[1];
+        const msgId = ctx.callbackQuery.message.message_id;
+        const chatId = ctx.callbackQuery.message.chat.id;
+        this.session.set_user_state(ctx.callbackQuery.from.id, {
+            type: 'interactive',
+            command: 'change_blocked_users',
+            targetChatId,
+            chatId,
+            messageId: msgId
+        });
+        ctx.reply(this.getChangeBlockedUsersMessageText(targetChatId), { parse_mode: 'HTML' });
+        this.user_access_log(ctx.callbackQuery.from.id, 'Edit blocked users of chat: ' + targetChatId);
+        return await this.safeAnswerCbQuery(ctx);
     };
 
     onActionManageSchedules = async (ctx) => {
-        const targetChatId = parseInt(ctx.match[1]);
-        if (!this.hasPermissionForChat(ctx.update.callback_query.from.id, targetChatId)) {
-            return await this.safeAnswerCbQuery(ctx, '你没有权限设置这个对话。', true);
-        }
-        settings.setUserState(ctx.update.callback_query.from.id,
-            USER_STATE_CODE_CHAT_MANAGE_SCHEDULES,
-            targetChatId);
-        
-        ctx.reply(this.getManageSchedulesMessageText(targetChatId), { parse_mode: 'Markdown' });
-         return await this.safeAnswerCbQuery(ctx);
+        const targetChatId = ctx.match[1];
+        const msgId = ctx.callbackQuery.message.message_id;
+        const chatId = ctx.callbackQuery.message.chat.id;
+        this.session.set_user_state(ctx.callbackQuery.from.id, {
+            type: 'interactive',
+            command: 'manage_schedules',
+            targetChatId,
+            chatId,
+            messageId: msgId
+        });
+        ctx.reply(this.getManageSchedulesMessageText(targetChatId), { parse_mode: 'HTML' });
+        this.user_access_log(ctx.callbackQuery.from.id, 'Edit schedules of chat: ' + targetChatId);
+        return await this.safeAnswerCbQuery(ctx);
     };
 
     onCommandManageChat = async (ctx) => {
@@ -784,15 +796,15 @@ class DanmaquaBot extends BotWrapper {
         }
         return '你正在编辑 id=' + chatId + ' 的屏蔽用户列表，' +
             '被屏蔽的用户弹幕不会被转发到对话中。\n' +
-            '输入 `add [弹幕源] [用户id]` 可以添加屏蔽用户，输入 `del [弹幕源] [用户id]` 可以解除屏蔽用户。' +
-            '例如：输入 `add bilibili 100` 可以屏蔽 bilibili 弹幕源 id 为 100 的用户。\n\n' +
-            '当前已被屏蔽的用户：\n`' + blockedUsers + '`\n' +
+            '输入 <code>add [弹幕源] [用户id]</code> 可以添加屏蔽用户，输入 <code>del [弹幕源] [用户id]</code> 可以解除屏蔽用户。' +
+            '例如：输入 <code>add bilibili 100</code> 可以屏蔽 bilibili 弹幕源 id 为 100 的用户。\n\n' +
+            '当前已被屏蔽的用户：\n<code>' + escapeHtml(blockedUsers) + '</code>\n' +
             '回复 /cancel 完成屏蔽修改并退出互动式对话。';
     };
 
     getManageSchedulesMessageText = (chatId) => {
         let schedules = settings.getChatSchedules(chatId)
-            .map(({expression, action}) => '`' + expression + ' ' + action + '`');
+            .map(({expression, action}) => '<code>' + escapeHtml(expression) + ' ' + escapeHtml(action) + '</code>');
         if (schedules.length > 0) {
             schedules = schedules.reduce((t, next) => t + '\n' + next);
         } else {
@@ -800,10 +812,10 @@ class DanmaquaBot extends BotWrapper {
         }
         return '你正在编辑 id=' + chatId + ' 的计划任务列表，' +
             '计划任务的时间格式使用 cron 时间表达式，同一个 cron 时间表达式只能设置一个任务，' +
-            '你可以相隔一秒设置不同的任务。任务命令可以参考：https://danmaqua.github.io/bot/scheduler\\_usage.html\n' +
-            '输入 `add [cron 时间表达式] [任务命令]` 可以添加计划任务\n' +
-            '输入 `del [cron 时间表达式]` 可以删除对应时间的任务。\n' +
-            '输入 `clear` 可以清除所有计划任务且不可恢复。\n' +
+            '你可以相隔一秒设置不同的任务。任务命令可以参考：https://danmaqua.github.io/bot/scheduler_usage.html\n' +
+            '输入 <code>add [cron 时间表达式] [任务命令]</code> 可以添加计划任务\n' +
+            '输入 <code>del [cron 时间表达式]</code> 可以删除对应时间的任务。\n' +
+            '输入 <code>clear</code> 可以清除所有计划任务且不可恢复。\n' +
             '当前已安排的任务计划：\n' + schedules + '\n' +
             '回复 /cancel 完成修改并退出互动式对话。';
     };
@@ -947,6 +959,16 @@ class DanmaquaBot extends BotWrapper {
             { parse_mode: 'Markdown' }
         );
     };
+}
+
+// 添加HTML转义函数
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 module.exports = DanmaquaBot;
