@@ -1,6 +1,5 @@
 const settings = require('./util/settings');
 const { Telegraf } = require('telegraf');
-const { Extra } = require('telegraf');
 const { Markup } = require('telegraf');
 
 class BotWrapper {

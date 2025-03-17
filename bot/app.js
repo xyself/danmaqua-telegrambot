@@ -1,3 +1,6 @@
+// 加载环境变量
+require('dotenv').config();
+
 const botConfig = require('../bot.config');
 const settings = require('./util/settings');
 const RateLimiter = require('./util/rate-limiter');
@@ -41,6 +44,10 @@ class Application {
             default: log4js.getLogger('default'),
             access: log4js.getLogger('access')
         };
+        
+        // 环境变量检查
+        this.checkEnvironmentVariables(botConfig);
+        
         // 初始化 Bot 数据库
         settings.init(botConfig, true);
         // 初始化弹幕源连接管理器
@@ -94,6 +101,21 @@ class Application {
         if (!this.bot.botUser) {
             return;
         }
+        
+        // 验证弹幕数据的完整性和有效性
+        if (!danmaku || !danmaku.sender || !danmaku.sourceId || !danmaku.text) {
+            this.logger.default.warn('收到无效弹幕数据:', danmaku);
+            return;
+        }
+        
+        // 修正无效的用户ID（如果uid为0或undefined）
+        if (!danmaku.sender.uid || danmaku.sender.uid === 0) {
+            // 使用用户名哈希作为临时ID
+            const tempId = this.hashString(danmaku.sender.username || '匿名用户');
+            this.logger.default.debug(`修正无效用户ID: 0 -> ${tempId}, 用户名: ${danmaku.sender.username}`);
+            danmaku.sender.uid = tempId;
+        }
+        
         for (let chatId of Object.keys(settings.chatsConfig)) {
             let chatConfig = settings.chatsConfig[chatId];
             if (chatConfig.roomId) {
@@ -113,6 +135,17 @@ class Application {
                 }
             }
         }
+    }
+    
+    // 简单的字符串哈希函数，用于为匿名用户生成唯一标识符
+    hashString(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // 转换为32位整数
+        }
+        return Math.abs(hash);
     }
 
     onConnectDMSource(source) {
@@ -134,37 +167,27 @@ class Application {
             this.logger.default.error(err);
         });
     }
+
+    // 检查关键环境变量
+    checkEnvironmentVariables(botConfig) {
+        // 检查B站SESSDATA
+        if (!botConfig.bilibiliSessData || botConfig.bilibiliSessData.length === 0) {
+            this.logger.default.warn('警告: B站SESSDATA未设置，用户信息将不完整。请设置环境变量DMQ_BILIBILI_SESSDATA');
+        } else {
+            this.logger.default.info('B站SESSDATA已设置');
+        }
+        
+        // 检查Bot Token
+        if (!botConfig.botToken || botConfig.botToken.length === 0) {
+            this.logger.default.error('错误: Bot Token未设置，请设置环境变量DMQ_BOT_TOKEN');
+        }
+        
+        // 检查Bot管理员
+        if (!botConfig.botAdmins || botConfig.botAdmins.length === 0) {
+            this.logger.default.warn('警告: Bot管理员未设置，请设置环境变量DMQ_BOT_ADMINS');
+        }
+    }
 }
 
-// 环境变量优先读取逻辑
-// 读取Bot Token
-if (process.env.DMQ_BOT_TOKEN) {
-    botConfig.botToken = process.env.DMQ_BOT_TOKEN;
-    console.log('使用环境变量中的Bot Token');
-} else if (!botConfig.botToken || botConfig.botToken.length === 0) {
-    console.log('错误：找不到Bot Token，环境变量DMQ_BOT_TOKEN未设置且配置文件中未配置');
-}
-
-// 读取Bot代理
-if (process.env.DMQ_BOT_PROXY) {
-    botConfig.botProxy = process.env.DMQ_BOT_PROXY;
-    console.log('使用环境变量中的Bot代理');
-}
-
-// 读取Bot管理员列表
-if (process.env.DMQ_BOT_ADMINS) {
-    botConfig.botAdmins = process.env.DMQ_BOT_ADMINS.split(',').map(Number);
-    console.log('使用环境变量中的Bot管理员列表');
-} else if (!botConfig.botAdmins || botConfig.botAdmins.length === 0) {
-    console.log('警告：未设置Bot管理员，管理员命令将不可用');
-}
-
-// 读取B站SESSDATA
-if (process.env.DMQ_BILIBILI_SESSDATA) {
-    botConfig.bilibiliSessData = process.env.DMQ_BILIBILI_SESSDATA;
-    console.log('使用环境变量中的B站SESSDATA');
-} else if (!botConfig.bilibiliSessData || botConfig.bilibiliSessData.length === 0) {
-    console.log('警告：未设置B站SESSDATA，某些功能可能受限');
-}
-
+// 创建并启动应用
 new Application(botConfig).startBot();

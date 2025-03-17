@@ -31,11 +31,25 @@ class DanmakuHandler extends BaseHandler {
 
     _on_danmaku(client, message) {
         try {
-            const dmSenderUid = message.uid;
-            const dmSenderUsername = message.uname;
+            // 移除冗长的原始弹幕消息日志
+            // console.log("原始弹幕消息:", JSON.stringify(message, null, 2));
+            
+            const dmSenderUid = message.uid || 0;
+            let dmSenderUsername = message.uname || '匿名用户';
             const dmSenderUrl = 'https://space.bilibili.com/' + dmSenderUid;
             const dmText = message.msg;
             const dmTimestamp = Math.floor(Date.now() / 1000);
+            
+            // 简化弹幕日志格式，只输出必要信息
+            console.log(`弹幕: ${dmSenderUsername}: ${dmText}`);
+
+            // 对于无效用户ID进行处理（通常是由于未登录或无权限获取用户信息）
+            let enhancedUid = dmSenderUid;
+            if (!enhancedUid || enhancedUid === 0) {
+                // 使用用户名哈希作为临时ID
+                enhancedUid = this._hashString(dmSenderUsername);
+                this.source.logger.debug(`[${this.roomId}] 用户ID无效，使用用户名哈希: ${dmSenderUsername} -> ${enhancedUid}`);
+            }
 
             // 添加粉丝牌信息（如果有）
             let medalInfo = '';
@@ -45,7 +59,7 @@ class DanmakuHandler extends BaseHandler {
 
             const danmaku = new Danmaku({
                 sender: {
-                    uid: dmSenderUid,
+                    uid: enhancedUid,  // 使用增强后的UID
                     username: dmSenderUsername,
                     url: dmSenderUrl,
                     medal: medalInfo
@@ -61,17 +75,37 @@ class DanmakuHandler extends BaseHandler {
         }
     }
 
+    // 添加哈希函数，计算字符串哈希值，用于生成匿名用户的UID
+    _hashString(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // 转换为32位整数
+        }
+        return Math.abs(hash);
+    }
+
     _on_gift(client, message) {
         try {
-            const dmSenderUid = message.uid || message.userId;
-            const dmSenderUsername = message.uname || message.username;
+            const dmSenderUid = message.uid || message.userId || 0;
+            let dmSenderUsername = message.uname || message.username || '匿名用户';
             const dmSenderUrl = 'https://space.bilibili.com/' + dmSenderUid;
             const dmText = `赠送 ${message.giftName}x${message.num} (${message.coinType === 'gold' ? '金瓜子' : '银瓜子'}x${message.totalCoin})`;
             const dmTimestamp = Math.floor(Date.now() / 1000);
 
+            // 简化日志输出
+            console.log(`礼物: ${dmSenderUsername} ${dmText}`);
+
+            // 对于无效用户ID进行处理
+            let enhancedUid = dmSenderUid;
+            if (!enhancedUid || enhancedUid === 0) {
+                enhancedUid = this._hashString(dmSenderUsername);
+            }
+
             const danmaku = new Danmaku({
                 sender: {
-                    uid: dmSenderUid,
+                    uid: enhancedUid,
                     username: dmSenderUsername,
                     url: dmSenderUrl
                 },
@@ -95,6 +129,9 @@ class DanmakuHandler extends BaseHandler {
             const dmText = `开通了 ${guardLevelName}`;
             const dmTimestamp = Math.floor(Date.now() / 1000);
 
+            // 简化日志输出
+            console.log(`舰长: ${dmSenderUsername} ${dmText}`);
+
             const danmaku = new Danmaku({
                 sender: {
                     uid: dmSenderUid,
@@ -114,15 +151,24 @@ class DanmakuHandler extends BaseHandler {
 
     _on_super_chat(client, message) {
         try {
-            const dmSenderUid = message.uid;
-            const dmSenderUsername = message.uname;
+            const dmSenderUid = message.uid || 0;
+            let dmSenderUsername = message.uname || '匿名用户';
             const dmSenderUrl = 'https://space.bilibili.com/' + dmSenderUid;
             const dmText = `醒目留言 ￥${message.price}: ${message.message}`;
             const dmTimestamp = Math.floor(Date.now() / 1000);
 
+            // 简化日志输出
+            console.log(`SC: ${dmSenderUsername} ￥${message.price}: ${message.message}`);
+
+            // 对于无效用户ID进行处理
+            let enhancedUid = dmSenderUid;
+            if (!enhancedUid || enhancedUid === 0) {
+                enhancedUid = this._hashString(dmSenderUsername);
+            }
+
             const danmaku = new Danmaku({
                 sender: {
-                    uid: dmSenderUid,
+                    uid: enhancedUid,
                     username: dmSenderUsername,
                     url: dmSenderUrl
                 },
@@ -154,6 +200,9 @@ class DanmakuHandler extends BaseHandler {
                 
                 const dmText = `进入直播间`;
                 const dmTimestamp = Math.floor(Date.now() / 1000);
+
+                // 简化日志输出 - 进入直播间的消息太多，完全不输出
+                // console.log(`进入: ${dmSenderUsername} ${medalInfo}`);
 
                 const danmaku = new Danmaku({
                     sender: {
@@ -188,6 +237,9 @@ class DanmakuHandler extends BaseHandler {
             
             const dmText = `为主播点赞了`;
             const dmTimestamp = Math.floor(Date.now() / 1000);
+
+            // 简化日志输出 - 点赞消息太多，完全不输出
+            // console.log(`点赞: ${dmSenderUsername}`);
 
             const danmaku = new Danmaku({
                 sender: {
@@ -233,6 +285,45 @@ class BilibiliDanmakuSource extends BaseDanmakuWebSocketSource {
         super(config);
         this.liveList = {};
         this.bilibiliProtocol = config.bilibiliProtocol;
+        
+        // 精简SESSDATA调试日志
+        console.log("初始化B站弹幕模块");
+        
+        // 使用直接从配置获取的SESSDATA
+        let sessData = config.sessData || '';
+        
+        // 检查SESSDATA是否有效
+        if (!sessData || sessData.length === 0) {
+            console.log("警告: 配置中的SESSDATA为空");
+            // 尝试直接从环境变量获取
+            const envSessData = process.env.DMQ_BILIBILI_SESSDATA || '';
+            if (envSessData && envSessData.length > 0) {
+                console.log("使用环境变量中的SESSDATA");
+                sessData = envSessData;
+            } else {
+                console.log("环境变量中也没有SESSDATA");
+            }
+        }
+        
+        // 解码SESSDATA（如果包含URL编码字符）
+        if (sessData.includes('%')) {
+            try {
+                const decodedSessData = decodeURIComponent(sessData);
+                sessData = decodedSessData;
+            } catch (e) {
+                console.error("解码SESSDATA失败:", e.message);
+            }
+        }
+
+        this.sessData = sessData; // 保存处理后的SESSDATA
+        
+        // 日志记录SESSDATA状态（不显示具体值，保护隐私）
+        if (this.sessData && this.sessData.length > 0) {
+            this.logger.info('Bilibili Danmaku Source initialized with SESSDATA');
+        } else {
+            this.logger.warn('Bilibili Danmaku Source initialized WITHOUT SESSDATA - user information may be limited');
+        }
+        
         if (this.bilibiliProtocol !== 'ws' && this.bilibiliProtocol !== 'tcp') {
             this.logger.info('Bilibili Danmaku Source configuration didn\'t specify protocol type. Set to ws as default.');
             this.bilibiliProtocol = 'ws';
@@ -249,29 +340,45 @@ class BilibiliDanmakuSource extends BaseDanmakuWebSocketSource {
     }
 
     createLive(roomId) {
-        // 使用bot.config.js中的bilibiliSessData创建客户端
-        const SESSDATA = botConfig.bilibiliSessData;
-        const live = new BLiveClient(roomId, { sessData: SESSDATA });
-        const handler = new DanmakuHandler(this, roomId);
+        // 使用类中保存的sessData创建客户端
+        console.log(`创建房间 ${roomId} 弹幕客户端`);
         
-        // 扩展handler，添加事件处理方法
-        handler.on_client_start = (client) => {
-            this.logger.debug(`Connected to live room: ${roomId}`);
-            handler.source.logger.debug(`[${roomId}] 客户端已启动`);
-        };
-        
-        handler.on_client_stop = (client) => {
-            this.logger.debug(`Disconnected from live room: ${roomId}`);
-        };
-        
-        handler._on_error = (client, error) => {
-            this.logger.error(`BilibiliDanmakuSource roomId=${roomId} error:`, error);
-        };
-        
-        live.set_handler(handler);
-        live.start();
-        
-        return live;
+        try {
+            // 创建liveOptions对象
+            const liveOptions = { 
+                sessData: this.sessData,
+                platform: 'web'
+            };
+            
+            // 创建客户端与处理器
+            const live = new BLiveClient(roomId, liveOptions);
+            const handler = new DanmakuHandler(this, roomId);
+            
+            // 设置处理器
+            handler.on_client_start = (client) => {
+                this.logger.debug(`Connected to live room: ${roomId}`);
+                console.log(`房间 ${roomId} 客户端已启动`);
+            };
+            
+            handler.on_client_stop = (client) => {
+                this.logger.debug(`Disconnected from live room: ${roomId}`);
+                console.log(`房间 ${roomId} 客户端已断开连接`);
+            };
+            
+            handler._on_error = (client, error) => {
+                this.logger.error(`BilibiliDanmakuSource roomId=${roomId} error:`, error);
+                console.error(`房间 ${roomId} 客户端错误:`, error);
+            };
+            
+            live.set_handler(handler);
+            live.start();
+            
+            return live;
+        } catch (err) {
+            console.error(`创建房间 ${roomId} 弹幕客户端出错:`, err);
+            this.logger.error(`创建房间 ${roomId} 弹幕客户端出错:`, err);
+            throw err;
+        }
     }
 
     onJoin(roomId) {
