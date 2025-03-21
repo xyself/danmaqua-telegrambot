@@ -58,6 +58,12 @@ class DanmakuSourceManager extends EventEmitter {
             this.logger.default.debug(`Danmaku source is connected! [id=${source.id}, url=${url}]`);
             this.emit('connect', source);
         });
+        socket.on('disconnect', () => {
+            this.logger.default.warn(`Danmaku source is disconnected! [id=${source.id}, url=${url}] Attempting to reconnect...`);
+            setTimeout(() => {
+                this.initWebSocketSource(source);
+            }, 5000); // 5秒后尝试重连
+        });
         const instance = new DanmakuWebSocketSource({
             id: source.id,
             type: source.type,
